@@ -20,7 +20,7 @@ Phần này là bản đồ tổng quan để mọi người nắm mô hình tr�
 
 - Một `Venue` là một địa điểm hoặc chi nhánh cụ thể; hai chi nhánh cùng thương hiệu là hai bản ghi.
 - Khách chưa đăng nhập có thể xem bản đồ, tìm địa điểm và mở chỉ đường; không được xem/viết review, xem hồ sơ người khác hoặc react.
-- Một tài khoản có tối đa một `Review` cho mỗi `Venue`; review có thể được chỉnh sửa. Việc review có cần xác minh đã ghé hay không vẫn để nhóm bàn sau.
+- Một tài khoản có tối đa một `Review` cho mỗi `Venue`; review có thể được chỉnh sửa. **Không yêu cầu xác minh người dùng đã ghé quán để được review.** Review không đồng nghĩa với việc đã ghé.
 - Hồ sơ mặc định hiển thị công khai trong app. Từ review trên trang quán, người xem có thể mở hồ sơ người viết và follow/kết nối; quyền riêng tư của từng review vẫn được áp dụng.
 - Review mặc định `Public` với người dùng đã đăng nhập; người viết có thể chọn `Public`, `FollowersOnly` hoặc `Private`. Guest vẫn không xem được review.
 - Thả tim (`VenueLike`) và lưu vào bản đồ cá nhân (`UserMapVenue`) là hai hành động riêng. Bản đồ cá nhân không chia sẻ với người khác.
@@ -227,7 +227,7 @@ Cặp (`UserId`, `VenueId`) duy nhất. Khi bỏ tim, xóa quan hệ này. Khác
 | `UpdatedAt` | `DateTimeOffset?` | Không | Thời điểm sửa. |
 | `IsHidden` | `bool` | Có | Ẩn review khi bị kiểm duyệt; mặc định false. |
 
-Ràng buộc: `Rating` nằm trong 1–5; phải có ít nhất `Rating` hoặc `Content`. User có thể review nhiều địa điểm, nhưng chỉ được có một review cho mỗi cặp (`UserId`, `VenueId`); cho phép sửa review hiện có, không tạo review thứ hai cho cùng quán. Tạo unique index cho cặp này. Việc có bắt buộc xác minh đã ghé quán trước khi review hay không chưa chốt; chưa thiết kế check-in/visit hay huy hiệu xác minh. Khách chưa đăng nhập không xem được review; `Public` nghĩa công khai cho người dùng đã đăng nhập trong app, không phải khách truy cập ẩn danh.
+Ràng buộc: `Rating` nằm trong 1–5; phải có ít nhất `Rating` hoặc `Content`. User có thể review nhiều địa điểm, nhưng chỉ được có một review cho mỗi cặp (`UserId`, `VenueId`); cho phép sửa review hiện có, không tạo review thứ hai cho cùng quán. Tạo unique index cho cặp này. **Không yêu cầu check-in/GPS hay bằng chứng ghé quán để viết review**; không gắn huy hiệu “đã xác minh”. Review không tự xác nhận user đã ghé quán. Khách chưa đăng nhập không xem được review; `Public` nghĩa công khai cho người dùng đã đăng nhập trong app, không phải khách truy cập ẩn danh.
 
 ### `UserFollow` — theo dõi người dùng
 
@@ -274,9 +274,11 @@ Không lưu tọa độ chính xác của khách trong log trừ khi có nhu c�
 
 ### Search request / recommendation result — DTO, không mặc định là entity
 
-`RecommendationRequestDto` có thể nhận `Prompt`, `Purpose`, `BudgetMin`, `BudgetMax`, `MaxDistanceKm`, `GroupSize`, `CategoryCodes`, `AtmosphereTags`, `AmenityCodes`, `Latitude`, `Longitude`. Các field tùy chọn theo giao diện; tọa độ cần thiết khi dùng lọc theo khoảng cách/Near me. Kết quả tìm kiếm không cần thành entity trong MVP.
+`RecommendationRequestDto` có thể nhận `Prompt`, `Purpose`, `BudgetMin`, `BudgetMax`, `MaxDistanceKm`, `GroupSize`, `FoodPreferences`, `AtmosphereTags`, `AmenityCodes` và `Origin` tùy chọn. Mọi tiêu chí đều tùy chọn; nếu người dùng gửi trống tất cả, API trả gợi ý chung/popular thay vì lỗi. Nếu có `MaxDistanceKm`, cần `Origin` để tính khoảng cách; vị trí gốc mặc định có thể lấy từ GPS sau khi người dùng cấp quyền, hoặc người dùng nhập/chọn điểm bắt đầu trên bản đồ. FE/app chuyển vị trí đã chọn thành tọa độ trước khi gửi; người dùng không phải nhập tọa độ dạng số. Nếu không có `Origin`, bỏ lọc khoảng cách.
 
-`RecommendationResultDto` nên trả `VenueId`, `Name`, `Category`, tọa độ, địa chỉ, khoảng giá, ảnh/tiện ích cần hiển thị, `DistanceKm`, `MatchScore` và `Reasons`. `DistanceKm`, `MatchScore`, `Reasons` là kết quả tính toán, không phải field cố định của `Venue`. `SearchHistory` chỉ lưu tiêu chí để khôi phục tìm kiếm theo tài khoản; mỗi lần mở lại, API tính kết quả hiện tại và trả khoảng cách, điểm phù hợp, lý do mới. Link chia sẻ được dựng từ ID địa điểm và route chi tiết của ứng dụng, không lưu lặp vào entity.
+`RecommendationResultDto` nên trả `VenueId`, `Name`, `Category`, tọa độ của quán, địa chỉ, khoảng giá, ảnh/tiện ích cần hiển thị, `DistanceKm`, `MatchScore` và `Reasons`. `DistanceKm`, `MatchScore`, `Reasons` là kết quả tính toán, không phải field cố định của `Venue`. `SearchHistory` chỉ lưu tiêu chí để khôi phục tìm kiếm theo tài khoản; mỗi lần mở lại, API tính kết quả hiện tại và trả khoảng cách, điểm phù hợp, lý do mới. Link chia sẻ được dựng từ ID địa điểm và route chi tiết của ứng dụng, không lưu lặp vào entity.
+
+`DirectionsRequestDto` là request riêng, phát sinh khi người dùng chọn quán và yêu cầu chỉ đường. Có thể nhận `Origin` và `Destination`; điểm bắt đầu mặc định lấy từ GPS khi được cấp quyền, nhưng user có thể tự nhập/chọn điểm bắt đầu. Điểm đến mặc định là quán vừa chọn và user có thể đổi thành địa điểm khác. Origin/destination được gửi dưới dạng tọa độ đã phân giải hoặc venue/place ID, không cần tạo entity chỉ để dựng đường đi. FE mở Google Maps bằng cặp điểm này; GPS không phải dữ liệu tọa độ của quán trong response.
 
 ## 4. Entity doanh nghiệp và khuyến mãi — flow B2B
 
@@ -352,9 +354,9 @@ Các ý dưới đây phản ánh đề xuất hiện tại của Thái; cần c
 | 3. User có thể review nhiều quán không? | Có, nhưng mỗi user chỉ có một review cho mỗi quán. | User có thể sửa review đó; không thể tạo review thứ hai cho cùng quán. Dùng unique index (`UserId`, `VenueId`). |
 | 4. Ai xem được nội dung của user? | Profile mặc định `Public` trong app; người dùng có thể chọn quyền hiển thị profile/nội dung như `Public`, `FollowersOnly` hoặc `Private`. | Người xem mở profile từ tên/ảnh người viết review trên trang địa điểm rồi có thể follow. Guest vẫn không được xem profile/review theo chế độ guest đã chốt. |
 | 5. Review mặc định hiển thị thế nào? | Khách chưa đăng nhập không xem review; review mới của user đăng nhập mặc định `Public`. | `Public` trong sản phẩm có nghĩa người dùng đăng nhập xem được, không đồng nghĩa khách ẩn danh xem được. User có thể đổi quyền nếu UI hỗ trợ. |
-| 6. Review có chứng minh đã ghé quán không? | **Chưa chốt; bàn sau.** | Chưa thêm entity/check-in hay thiết kế huy hiệu đã xác minh cho đến khi nhóm thống nhất. |
+| 6. Review có chứng minh đã ghé quán không? | **Không cần xác minh đã ghé để review.** | Không thêm entity/check-in, không yêu cầu GPS và không gắn huy hiệu “đã xác minh”. Review không đồng nghĩa với một lượt ghé. |
 | 7. Lưu lịch sử tìm kiếm bao lâu? | **Tối đa 6 lượt gần đây** cho mỗi tài khoản/phiên khách; lượt thứ 7 xóa lượt cũ nhất. | `SearchHistory` lưu tiêu chí, không lưu snapshot kết quả; user có thể xem/xóa lịch sử của mình. Guest dùng session ID; khi đăng nhập gộp lịch sử rồi chỉ giữ 6 lượt mới nhất tổng cộng. |
 | 8. Ai tạo/publish quán? | Có thể cho user gửi địa điểm theo hướng UGC; đề xuất bản ghi user gửi ở trạng thái `Pending` trước khi public. | Admin/nhóm kiểm duyệt dữ liệu trong MVP. B2B không bắt buộc ở MVP; giai đoạn sau doanh nghiệp có thể xác minh hồ sơ, claim/quản lý địa điểm và đăng khuyến mãi. |
 | 9. Chia sẻ link địa điểm ra sao? | Mỗi địa điểm có link ổn định; mở link sẽ vào trang chi tiết đúng địa điểm. | Dựng URL từ ID/slug; không cần field `ShareUrl` trong bảng `Venue`. |
 
-Nhóm có thể bắt đầu triển khai các entity và flow đã chốt. Chưa thêm entity/check-in để xác minh lượt ghé cho đến khi nhóm bàn xong; giới hạn 6 lượt tìm kiếm là cấu hình nghiệp vụ, không làm thay đổi cấu trúc bảng. Có thể thêm social/B2B migrations theo từng giai đoạn.
+Nhóm có thể bắt đầu triển khai các entity và flow đã chốt. Không có entity xác minh lượt ghé trong thiết kế hiện tại; giới hạn 6 lượt tìm kiếm là cấu hình nghiệp vụ, không làm thay đổi cấu trúc bảng. Có thể thêm social/B2B migrations theo từng giai đoạn.

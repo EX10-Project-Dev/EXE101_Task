@@ -40,7 +40,7 @@ Task này dựa trên tài liệu `Customer user( chưa authentication) prompt 1
 - [ ] Thêm thao tác chọn địa điểm và mở Google Maps.
 - [ ] Kết nối UI với API backend sau khi thống nhất contract.
 
-### Bạn — BE: API và nghiệp vụ luồng
+### Thái — BE: API và nghiệp vụ luồng
 
 - [ ] Chốt request/response API với Nhã và Khôi.
 - [ ] Tạo endpoint nhận nhu cầu tìm kiếm và trả kết quả gợi ý.

@@ -80,3 +80,7 @@ FE và BE cần thống nhất cấu trúc request/response, tên field, cách b
 ## Cách cập nhật task
 
 Mỗi người tự tick `- [ ]` thành `- [x]` khi hoàn tất mục của mình. Nếu một mục đang làm dở hoặc bị chặn, ghi chú ngay bên dưới mục đó để cả nhóm biết.
+
+## Tài liệu thiết kế
+
+- [Đề xuất entity và giải thích từng field](ENTITY_DESIGN.md) — bản thảo để nhóm thống nhất trước khi tạo migration.

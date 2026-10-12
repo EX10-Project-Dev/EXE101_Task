@@ -1,28 +1,29 @@
-﻿# Đề xuất thiết kế entity cho FIND&GO
+# Đề xuất thiết kế entity cho FIND&GO
 
 Tài liệu này là bản đề xuất để FE, BE và nhóm dữ liệu thống nhất trước khi tạo bảng/entity trong EF Core. Đây chưa phải schema đã được chốt. Tên field dùng PascalCase theo C#; dữ liệu lưu database dùng các entity bên dưới, còn dữ liệu gửi/nhận API dùng DTO riêng.
 
 ## Tóm tắt nhanh cho cả nhóm
 
-Phần này là bản đồ tổng quan để mọi người nắm mô hình trước khi đọc từng bảng và field chi tiết.
+Phần này là bản đồ tổng quan để mọi người nắm mô hình trước khi đọc từng bảng và field chi tiết. FIND&GO lấy Atly làm hình mẫu cho trải nghiệm khám phá địa điểm trên bản đồ và hoạt động cộng đồng; tài liệu này chỉ chọn các hành vi phù hợp với yêu cầu nhóm và phạm vi đồ án.
 
 | Nhóm dữ liệu | Entity chính | Dùng để làm gì |
 | --- | --- | --- |
 | Địa điểm | `Venue`, `VenueCategory`, `VenueTag`, `Amenity`, `VenuePhoto`, `OpeningHour`, `OpeningHourException` | Lưu từng quán/chi nhánh cùng thông tin cần để tìm, lọc và hiển thị trên bản đồ. |
 | Tài khoản và cộng đồng | `AppUser`, `UserFollow`, `VenueLike`, `Review` | Đại diện cho tài khoản, quan hệ theo dõi, lượt thả tim và review. Các tính năng cộng đồng yêu cầu đăng nhập. |
-| Bản đồ cá nhân | `UserMap`, `UserMapVenue` | Lưu các địa điểm của một tài khoản; riêng tư mặc định và độc lập với việc thả tim. |
-| Lịch sử tìm kiếm | `SearchHistory` | Lưu mọi lượt tìm kiếm hợp lệ: tài khoản thì gắn `UserId`, khách thì gắn `AnonymousSessionId`; lưu tiêu chí, không lưu bản chụp kết quả. Chủ sở hữu được xem/xóa lịch sử của mình. |
+| Bản đồ cá nhân | `UserMap`, `UserMapVenue` | Lưu các địa điểm riêng tư của một tài khoản, độc lập với việc thả tim. |
+| Lịch sử tìm kiếm | `SearchHistory` | Giữ tối đa 6 lượt gần đây cho mỗi `UserId` hoặc `AnonymousSessionId`; lượt cũ nhất bị xóa khi thêm lượt thứ 7. |
 | Điều hướng | `NavigationLog` | Ghi nhận thao tác mở chỉ đường nếu nhóm giữ yêu cầu này trong MVP. |
-| Địa điểm do người dùng gửi | `Venue.SubmittedByUserId` và trạng thái kiểm duyệt | Địa điểm mới chờ duyệt trước khi công khai; không cần tạo một bản sao `Venue` riêng cho trạng thái chờ. |
+| Địa điểm do người dùng gửi | `Venue.CreatedByUserId` và trạng thái kiểm duyệt | Địa điểm mới chờ duyệt trước khi công khai; không cần tạo một bản sao `Venue` riêng cho trạng thái chờ. |
 | B2B mở rộng | `BusinessProfile`, `Promotion` | Hỗ trợ doanh nghiệp xác minh/quản lý địa điểm và tạo khuyến mãi ở giai đoạn sau, ngoài MVP. |
 
 ### Các quy tắc nghiệp vụ quan trọng
 
 - Một `Venue` là một địa điểm hoặc chi nhánh cụ thể; hai chi nhánh cùng thương hiệu là hai bản ghi.
 - Khách chưa đăng nhập có thể xem bản đồ, tìm địa điểm và mở chỉ đường; không được xem/viết review, xem hồ sơ người khác hoặc react.
-- Một tài khoản có tối đa một `Review` cho mỗi `Venue`; review có thể được chỉnh sửa. Không yêu cầu xác minh đã ghé quán trong MVP.
+- Một tài khoản có tối đa một `Review` cho mỗi `Venue`; review có thể được chỉnh sửa. Việc review có cần xác minh đã ghé hay không vẫn để nhóm bàn sau.
+- Hồ sơ mặc định hiển thị công khai trong app. Từ review trên trang quán, người xem có thể mở hồ sơ người viết và follow/kết nối; quyền riêng tư của từng review vẫn được áp dụng.
 - Review mặc định `Public` với người dùng đã đăng nhập; người viết có thể chọn `Public`, `FollowersOnly` hoặc `Private`. Guest vẫn không xem được review.
-- Thả tim (`VenueLike`) và lưu vào bản đồ cá nhân (`UserMapVenue`) là hai hành động riêng. Bản đồ cá nhân riêng tư mặc định.
+- Thả tim (`VenueLike`) và lưu vào bản đồ cá nhân (`UserMapVenue`) là hai hành động riêng. Bản đồ cá nhân không chia sẻ với người khác.
 - Lưu tất cả tiêu chí tìm kiếm hợp lệ, kể cả khi khách chưa đăng nhập. Khi khách đăng nhập/đăng ký, nối lịch sử theo `AnonymousSessionId` vào tài khoản mà không tạo bản ghi trùng.
 - Tọa độ GPS chỉ dùng khi người dùng chủ động chọn “Gần tôi”; không lưu vị trí chính xác thường xuyên trong hồ sơ. Nếu cần lưu tọa độ trong lịch sử của lượt đó, coi đây là dữ liệu riêng tư và chỉ lưu tối thiểu.
 - Địa điểm do người dùng gửi ở trạng thái chờ duyệt. Doanh nghiệp/B2B và khuyến mãi chưa thuộc MVP.
@@ -79,7 +80,7 @@ Mỗi bản ghi là một địa điểm cụ thể. Hai chi nhánh cùng thươ
 | `CreatedByUserId` | `string?` | Không | User gửi/tạo địa điểm; để trống nếu do admin/nhóm nhập hoặc seed. |
 | `BusinessProfileId` | `Guid?` | Không | Doanh nghiệp sở hữu/quản lý địa điểm, dùng ở flow B2B. |
 
-**Ghi chú:** `GoogleMapsUrl` có thể dựng từ `GooglePlaceId` hoặc tọa độ khi cần; không nhất thiết lưu trùng nếu URL chỉ phục vụ mở bản đồ. Khoảng cách đến người dùng không phải thuộc tính cố định của quán.
+**Ghi chú:** `GoogleMapsUrl` có thể dựng từ `GooglePlaceId` hoặc tọa độ khi cần; không nhất thiết lưu trùng nếu URL chỉ phục vụ mở bản đồ. Khoảng cách đến người dùng không phải thuộc tính cố định của quán. Link chia sẻ của FIND&GO cũng không cần lưu thành field; tạo URL ổn định trỏ đến trang chi tiết theo `Venue.Id` (hoặc slug có ID), để khi mở link app/web tải đúng địa điểm.
 
 ### `VenueCategory` — danh mục chính
 
@@ -173,7 +174,7 @@ Dự án BE đã có `AppUser` kế thừa ASP.NET Identity. Không tạo entity
 | `DisplayName` | `string` | Có | Tên hiển thị trên profile/review. |
 | `Bio` | `string?` | Không | Giới thiệu ngắn. |
 | `AvatarUrl` | `string?` | Không | Ảnh đại diện. |
-| `ProfileVisibility` | `ProfileVisibility` | Có | Quyền xem profile: `Public`, `FollowersOnly` hoặc `Private`; lựa chọn mặc định cần nhóm chốt. Quyền riêng tư của nội dung riêng lẻ vẫn có thể khác. |
+| `ProfileVisibility` | `ProfileVisibility` | Có | Quyền xem profile: `Public`, `FollowersOnly` hoặc `Private`; mặc định `Public` theo quyết định hiện tại. Quyền riêng tư của từng review/map vẫn có thể khác. |
 | `CreatedAt` | `DateTimeOffset` | Có | Thời điểm tạo hồ sơ. |
 | `IsActive` | `bool` | Có | Tài khoản còn hoạt động không. |
 
@@ -187,7 +188,6 @@ Email, mật khẩu, khóa chính và trạng thái xác nhận email đã thu�
 | `OwnerUserId` | `string` | Có | Chủ sở hữu bản đồ; FK đến `AppUser`. |
 | `Name` | `string` | Có | Tên bản đồ, ví dụ “Quán muốn thử”. |
 | `Description` | `string?` | Không | Mô tả. |
-| `Visibility` | `ContentVisibility` | Có | `Public`, `FollowersOnly`, `Private`; đề xuất bản đồ cá nhân mặc định `Private`. |
 | `CreatedAt` | `DateTimeOffset` | Có | Thời điểm tạo. |
 | `UpdatedAt` | `DateTimeOffset?` | Không | Thời điểm sửa gần nhất. |
 
@@ -200,7 +200,7 @@ Email, mật khẩu, khóa chính và trạng thái xác nhận email đã thu�
 | `AddedAt` | `DateTimeOffset` | Có | Thời điểm lưu. |
 | `Note` | `string?` | Không | Ghi chú riêng của chủ bản đồ. |
 
-Cặp (`UserMapId`, `VenueId`) duy nhất để tránh lưu trùng một quán vào cùng bản đồ. Danh sách được lưu theo tài khoản, mặc định `Private` và không hiển thị cho người khác; user có thể đổi quyền chia sẻ bản đồ nếu nhóm hỗ trợ lựa chọn đó. Dữ liệu này vẫn còn sau khi phiên đăng nhập hết hạn và có thể dùng để cá nhân hóa gợi ý sau khi user đăng nhập lại. Việc lưu vào map không tự động có nghĩa user đã ghé hoặc review quán.
+Cặp (`UserMapId`, `VenueId`) duy nhất để tránh lưu trùng một quán vào cùng bản đồ. Bản đồ lưu là riêng tư theo tài khoản và người khác không xem được; vì vậy không cần field `Visibility` cho `UserMap` ở phiên bản này. Dữ liệu này vẫn còn sau khi phiên đăng nhập hết hạn và có thể dùng để cá nhân hóa gợi ý sau khi user đăng nhập lại. Việc lưu vào map không tự động có nghĩa user đã ghé hoặc review quán.
 
 ### `VenueLike` — lượt tim
 
@@ -211,7 +211,7 @@ Cặp (`UserMapId`, `VenueId`) duy nhất để tránh lưu trùng một quán v
 | `Visibility` | `ContentVisibility` | Có | Ai nhìn thấy lượt tim: `Public`, `FollowersOnly`, `Private`; đề xuất mặc định `Public` trong phạm vi người đã đăng nhập. |
 | `CreatedAt` | `DateTimeOffset` | Có | Thời điểm thả tim. |
 
-Cặp (`UserId`, `VenueId`) duy nhất. Khi bỏ tim, xóa quan hệ này. Khách chưa đăng nhập không xem được lượt tim. Nếu nhóm quyết định tim chính là lưu vào map, có thể bỏ entity này và dùng một hành động thống nhất.
+Cặp (`UserId`, `VenueId`) duy nhất. Khi bỏ tim, xóa quan hệ này. Khách chưa đăng nhập không xem được lượt tim. Tim không tự động lưu địa điểm vào bản đồ cá nhân.
 
 ### `Review` — đánh giá/review
 
@@ -227,7 +227,7 @@ Cặp (`UserId`, `VenueId`) duy nhất. Khi bỏ tim, xóa quan hệ này. Khác
 | `UpdatedAt` | `DateTimeOffset?` | Không | Thời điểm sửa. |
 | `IsHidden` | `bool` | Có | Ẩn review khi bị kiểm duyệt; mặc định false. |
 
-Ràng buộc: `Rating` nằm trong 1–5; phải có ít nhất `Rating` hoặc `Content`. User có thể review nhiều địa điểm, nhưng chỉ được có một review cho mỗi cặp (`UserId`, `VenueId`); cho phép sửa review hiện có, không tạo review thứ hai cho cùng quán. Tạo unique index cho cặp này. User không cần chứng minh đã ghé quán mới được viết review. Review không được gọi là “đã xác minh ghé thăm” nếu không có check-in riêng. Khách chưa đăng nhập không xem được review; `Public` nghĩa công khai cho người dùng đã đăng nhập trong app, không phải khách truy cập ẩn danh.
+Ràng buộc: `Rating` nằm trong 1–5; phải có ít nhất `Rating` hoặc `Content`. User có thể review nhiều địa điểm, nhưng chỉ được có một review cho mỗi cặp (`UserId`, `VenueId`); cho phép sửa review hiện có, không tạo review thứ hai cho cùng quán. Tạo unique index cho cặp này. Việc có bắt buộc xác minh đã ghé quán trước khi review hay không chưa chốt; chưa thiết kế check-in/visit hay huy hiệu xác minh. Khách chưa đăng nhập không xem được review; `Public` nghĩa công khai cho người dùng đã đăng nhập trong app, không phải khách truy cập ẩn danh.
 
 ### `UserFollow` — theo dõi người dùng
 
@@ -241,9 +241,9 @@ Cặp ID là duy nhất; không cho phép hai ID giống nhau. Nếu cần duy�
 
 ## 3. Entity log và tìm kiếm
 
-### `SearchHistory` — lịch sử tất cả lượt tìm kiếm
+### `SearchHistory` — lịch sử tìm kiếm gần đây
 
-Mỗi lần gửi một yêu cầu tìm kiếm hợp lệ sẽ tạo một bản ghi. Lịch sử là riêng tư, chỉ chủ tài khoản mới xem/xóa được. Phiên đăng nhập hết hạn không xóa dữ liệu đã lưu. Lưu tiêu chí tìm kiếm để chạy lại; không lưu nguyên danh sách kết quả vì dữ liệu địa điểm và thứ hạng có thể thay đổi.
+Mỗi lần gửi một yêu cầu tìm kiếm hợp lệ sẽ tạo một bản ghi. Lịch sử là riêng tư, chỉ chủ tài khoản mới xem/xóa được. Phiên đăng nhập hết hạn không xóa dữ liệu còn trong giới hạn lưu. Lưu tiêu chí tìm kiếm để chạy lại; không lưu nguyên danh sách kết quả vì dữ liệu địa điểm và thứ hạng có thể thay đổi. Giữ tối đa **6 lượt tìm kiếm gần đây** cho mỗi tài khoản hoặc phiên khách; khi gửi lượt thứ 7, xóa lượt cũ nhất để còn 6 lượt mới nhất.
 
 | Field | Kiểu C# gợi ý | Bắt buộc? | Ý nghĩa |
 | --- | --- | --- | --- |
@@ -254,7 +254,7 @@ Mỗi lần gửi một yêu cầu tìm kiếm hợp lệ sẽ tạo một bản
 | `CreatedAt` | `DateTimeOffset` | Có | Thời điểm thực hiện tìm kiếm. |
 | `DisplayName` | `string?` | Không | Tên gợi nhớ do user đặt, nếu có lưu tìm kiếm yêu thích. |
 
-Ràng buộc: phải có `UserId` hoặc `AnonymousSessionId`. Với tài khoản, mọi tìm kiếm được gắn vào `UserId`; khi xem lại, FE gọi API bằng tiêu chí đã lưu và hiển thị kết quả mới. Với khách, lưu theo mã phiên ẩn danh; khi khách đăng nhập/đăng ký, backend có thể gắn các lượt tìm kiếm của phiên đó vào tài khoản. User có thể xóa một lượt hoặc xóa toàn bộ lịch sử.
+Ràng buộc: phải có `UserId` hoặc `AnonymousSessionId`. Với tài khoản, tìm kiếm được gắn vào `UserId`; khi xem lại, FE gọi API bằng tiêu chí đã lưu và hiển thị kết quả mới. Với khách, lưu theo mã phiên ẩn danh; khi khách đăng nhập/đăng ký, backend gắn lịch sử khách vào tài khoản rồi chỉ giữ 6 lượt mới nhất tổng cộng, xóa lượt cũ hơn nếu vượt giới hạn. User có thể xóa một lượt hoặc xóa toàn bộ lịch sử. Giới hạn 6 là cấu hình nghiệp vụ, không phải field riêng trên mỗi dòng.
 
 Chỉ ghi yêu cầu hợp lệ đã được gửi đi, không ghi form nháp. Nếu tiêu chí có vị trí GPS chính xác, chỉ lưu khi cần để chạy lại tìm kiếm; lịch sử phải được bảo vệ như dữ liệu riêng tư của user.
 
@@ -276,7 +276,7 @@ Không lưu tọa độ chính xác của khách trong log trừ khi có nhu c�
 
 `RecommendationRequestDto` có thể nhận `Prompt`, `Purpose`, `BudgetMin`, `BudgetMax`, `MaxDistanceKm`, `GroupSize`, `CategoryCodes`, `AtmosphereTags`, `AmenityCodes`, `Latitude`, `Longitude`. Các field tùy chọn theo giao diện; tọa độ cần thiết khi dùng lọc theo khoảng cách/Near me. Kết quả tìm kiếm không cần thành entity trong MVP.
 
-`RecommendationResultDto` nên trả `VenueId`, `Name`, `Category`, tọa độ, địa chỉ, khoảng giá, ảnh/tiện ích cần hiển thị, `DistanceKm`, `MatchScore` và `Reasons`. `DistanceKm`, `MatchScore`, `Reasons` là kết quả tính toán, không phải field cố định của `Venue`. `SearchHistory` chỉ lưu tiêu chí để khôi phục tìm kiếm theo tài khoản; mỗi lần mở lại, API tính kết quả hiện tại và trả khoảng cách, điểm phù hợp, lý do mới.
+`RecommendationResultDto` nên trả `VenueId`, `Name`, `Category`, tọa độ, địa chỉ, khoảng giá, ảnh/tiện ích cần hiển thị, `DistanceKm`, `MatchScore` và `Reasons`. `DistanceKm`, `MatchScore`, `Reasons` là kết quả tính toán, không phải field cố định của `Venue`. `SearchHistory` chỉ lưu tiêu chí để khôi phục tìm kiếm theo tài khoản; mỗi lần mở lại, API tính kết quả hiện tại và trả khoảng cách, điểm phù hợp, lý do mới. Link chia sẻ được dựng từ ID địa điểm và route chi tiết của ứng dụng, không lưu lặp vào entity.
 
 ## 4. Entity doanh nghiệp và khuyến mãi — flow B2B
 
@@ -350,10 +350,11 @@ Các ý dưới đây phản ánh đề xuất hiện tại của Thái; cần c
 | 1. Khách chưa đăng nhập được làm gì? | Khách chưa đăng nhập xem map, tìm quán và mở đường đi được; không xem/đăng review, xem profile người khác hoặc react. Các tính năng cộng đồng yêu cầu đăng nhập. | Đây là chế độ khách tương tự cách nhóm muốn dùng app bản đồ: cho dùng chức năng bản đồ cơ bản, yêu cầu tài khoản để tham gia nội dung xã hội. “Premium” hiện được hiểu là tính năng yêu cầu đăng nhập, không phải gói trả phí. |
 | 2. Tim và lưu map có khác nhau không? | Có. Tim có thể hiển thị trên hoạt động/profile theo quyền riêng tư; lưu là danh sách cá nhân gắn với tài khoản và private mặc định. | `UserMap`/`UserMapVenue` lưu server-side để đồng bộ theo tài khoản và cá nhân hóa gợi ý. |
 | 3. User có thể review nhiều quán không? | Có, nhưng mỗi user chỉ có một review cho mỗi quán. | User có thể sửa review đó; không thể tạo review thứ hai cho cùng quán. Dùng unique index (`UserId`, `VenueId`). |
-| 4. Ai xem được nội dung của user? | User chọn `Public`, `FollowersOnly` hoặc `Private`. | Áp dụng quyền ở profile và/hoặc từng map, tim, review. Mặc định của profile cần nhóm chốt. |
+| 4. Ai xem được nội dung của user? | Profile mặc định `Public` trong app; người dùng có thể chọn quyền hiển thị profile/nội dung như `Public`, `FollowersOnly` hoặc `Private`. | Người xem mở profile từ tên/ảnh người viết review trên trang địa điểm rồi có thể follow. Guest vẫn không được xem profile/review theo chế độ guest đã chốt. |
 | 5. Review mặc định hiển thị thế nào? | Khách chưa đăng nhập không xem review; review mới của user đăng nhập mặc định `Public`. | `Public` trong sản phẩm có nghĩa người dùng đăng nhập xem được, không đồng nghĩa khách ẩn danh xem được. User có thể đổi quyền nếu UI hỗ trợ. |
-| 6. Review có chứng minh đã ghé quán không? | **MVP: không yêu cầu xác minh lượt ghé để đăng review.** | Không thêm `VenueVisit`/check-in và không gắn nhãn “đã xác minh” trong bản đầu. User đăng nhập có thể review; nhóm có thể thêm QR check-in khi quán B2B tham gia ở giai đoạn sau. |
-| 7. Giữ tìm kiếm ở đâu khi phiên hết hạn? | **Lưu tất cả lượt tìm kiếm.** Lịch sử gắn với tài khoản và vẫn còn sau khi đăng nhập lại. | `SearchHistory` lưu tiêu chí, không lưu snapshot kết quả; mỗi truy vấn mới sẽ được chạy lại. Lượt tìm của khách gắn với mã phiên ẩn danh và có thể nhập vào tài khoản khi đăng nhập. Cần có chức năng xóa lịch sử. |
+| 6. Review có chứng minh đã ghé quán không? | **Chưa chốt; bàn sau.** | Chưa thêm entity/check-in hay thiết kế huy hiệu đã xác minh cho đến khi nhóm thống nhất. |
+| 7. Lưu lịch sử tìm kiếm bao lâu? | **Tối đa 6 lượt gần đây** cho mỗi tài khoản/phiên khách; lượt thứ 7 xóa lượt cũ nhất. | `SearchHistory` lưu tiêu chí, không lưu snapshot kết quả; user có thể xem/xóa lịch sử của mình. Guest dùng session ID; khi đăng nhập gộp lịch sử rồi chỉ giữ 6 lượt mới nhất tổng cộng. |
 | 8. Ai tạo/publish quán? | Có thể cho user gửi địa điểm theo hướng UGC; đề xuất bản ghi user gửi ở trạng thái `Pending` trước khi public. | Admin/nhóm kiểm duyệt dữ liệu trong MVP. B2B không bắt buộc ở MVP; giai đoạn sau doanh nghiệp có thể xác minh hồ sơ, claim/quản lý địa điểm và đăng khuyến mãi. |
+| 9. Chia sẻ link địa điểm ra sao? | Mỗi địa điểm có link ổn định; mở link sẽ vào trang chi tiết đúng địa điểm. | Dựng URL từ ID/slug; không cần field `ShareUrl` trong bảng `Venue`. |
 
-Không tạo migration trước khi nhóm xác nhận các quyết định ảnh hưởng đến quyền riêng tư và quan hệ. Có thể triển khai MVP địa điểm trước, rồi thêm social/B2B migrations theo từng flow.
+Nhóm có thể bắt đầu triển khai các entity và flow đã chốt. Chưa thêm entity/check-in để xác minh lượt ghé cho đến khi nhóm bàn xong; giới hạn 6 lượt tìm kiếm là cấu hình nghiệp vụ, không làm thay đổi cấu trúc bảng. Có thể thêm social/B2B migrations theo từng giai đoạn.
